@@ -1,156 +1,99 @@
-import React from 'react';
-import axios from 'axios';
-import ImageGallery from './ImageGallery/ImageGallery';
-import ImageGalleryItem from './ImageGalleryItem/ImageGalleryItem';
-import Loader from './Loader/Loader';
+import { Component } from 'react';
+import * as API from '../api/PixabayApi';
 import SearchBar from './SearchBar/SearchBar';
+import ImageGallery from './ImageGallery/ImageGallery';
+import Loader from './Loader/Loader';
 import Button from './Button/Button';
-import Modal from './Modal/Modal';
+import { ToastContainer, toast, Slide } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-export class App extends React.Component {
+export class App extends Component {
   state = {
-    element: null,
-    loader: false,
-    inputValue: '',
-    totalHits: null,
-    per_page: 4,
-    page: 1,
-    howPage: null,
-    bigPhoto: null,
-    showModal: false,
+    searchName: '',
+    images: [],
+    currentPage: 1,
+    error: null,
+    isLoading: false,
+    totalPages: 0,
   };
 
-  fetchPhoto = async query => {
-    try {
-      this.setState({
-        loader: true,
-      });
-      if (!query) {
-        const { data } = await axios.get(
-          `https://pixabay.com/api/?q=&page=1&key=39498019-0e2531e9378e4701f97ebc4d8&image_type=photo&orientation=horizontal&per_page=${this.state.per_page}&page=${this.state.page}`
-        );
-        this.setState({
-          element: data.hits,
-          totalHits: data.totalHits,
-        });
-        return;
-      }
-      const { data } = await axios.get(
-        `https://pixabay.com/api/?q=${query}&page=1&key=39498019-0e2531e9378e4701f97ebc4d8&image_type=photo&orientation=horizontal&per_page=${this.state.per_page}&page=${this.state.page}`
-      );
-      this.setState({
-        element: data.hits,
-        totalHits: data.totalHits,
-      });
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      this.setState({
-        loader: false,
-      });
+  componentDidUpdate(_, prevState) {
+    if (
+      prevState.searchName !== this.state.searchName ||
+      prevState.currentPage !== this.state.currentPage
+    ) {
+      this.addImages();
     }
-  };
-
-  componentDidMount() {
-    this.fetchPhoto();
   }
-
-  onSubmit = data => {
-    this.setState(
-      {
-        inputValue: data,
-      },
-      () => {
-        this.fetchPhoto(data);
-      }
-    );
+  
+  loadMore = () => {
+    this.setState(prevState => ({
+      currentPage: prevState.currentPage + 1,
+    }));
   };
 
-  handleOnClick = pageNumber => {
-    const fetchPhotoNewPage = async () => {
-      try {
-        this.setState({
-          loader: true,
-        });
-        const { data } = await axios.get(
-          `https://pixabay.com/api/?q=${this.state.inputValue}&page=1&key=39498019-0e2531e9378e4701f97ebc4d8&image_type=photo&orientation=horizontal&per_page=${this.state.per_page}&page=${pageNumber}`
-        );
-        this.setState(prevState => ({
-          element: [...prevState.element, ...data.hits],
-        }));
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        this.setState({
-          loader: false,
-        });
-      }
-      };
-      
-    fetchPhotoNewPage();
+  handleSubmit = query => {
     this.setState({
-      page: pageNumber,
+      searchName: query,
+      images: [],
+      currentPage: 1,
     });
   };
 
-  handleUrlOnClick = bigPhoto => {
-    this.setState({
-      bigPhoto: bigPhoto,
-    });
-  };
+  addImages = async () => {
+    const { searchName, currentPage } = this.state;
+    try {
+      this.setState({ isLoading: true });
 
-  toggleModal = () => {
-    if (this.state.showModal === false) {
-      this.setState({
-        showModal: true,
-      });
-      return;
+      const data = await API.getImages(searchName, currentPage);
+
+      if (data.hits.length === 0) {
+        return toast.info('Sorry image not found...', {
+          position: toast.POSITION.TOP_RIGHT,
+        });
+      }
+
+      const normalizedImages = API.normalizedImages(data.hits);
+
+      this.setState(state => ({
+        images: [...state.images, ...normalizedImages],
+        isLoading: false,
+        error: '',
+        totalPages: Math.ceil(data.totalHits / 12),
+      }));
+    } catch (error) {
+      this.setState({ error: 'Something went wrong!' });
+    } finally {
+      this.setState({ isLoading: false });
     }
-    this.setState({
-      showModal: false,
-    });
-  };
-
-  toggleModalEsc = () => {
-    this.setState({
-      showModal: false,
-    });
   };
 
   render() {
+    const { images, isLoading, currentPage, totalPages } = this.state;
+
     return (
       <div>
-        {this.state.loader && <Loader />}
-        <SearchBar onSubmit={this.onSubmit} />
-        {this.state.element !== null && (
-          <ImageGallery>
-            <ImageGalleryItem
-              elements={this.state.element}
-              toggleModal={this.toggleModal}
-              handleUrlOnClick={this.handleUrlOnClick}
-            />
-          </ImageGallery>
+        <ToastContainer transition={Slide} />
+        <SearchBar onSubmit={this.handleSubmit} />
+        {images.length > 0 ? (
+          <ImageGallery images={images} />
+        ) : (
+          <p
+            style={{
+              padding: 100,
+              textAlign: 'center',
+              fontSize: 30,
+            }}
+          >
+          </p>
         )}
-        {this.state.element !== null &&
-          this.state.totalHits > this.state.per_page &&
-          Math.ceil(this.state.totalHits / this.state.per_page) !==
-            this.state.page &&
-          this.state.element.length !== 0 && (
-            <Button
-              page={this.state.page}
-              per_page={this.state.per_page}
-              totalHits={this.state.totalHits}
-              handleOnClick={this.handleOnClick}
-            />
-          )}
-        {this.state.showModal && (
-          <Modal
-            photo={this.state.bigPhoto}
-            toggleModal={this.toggleModal}
-            toggleModalEsc={this.toggleModalEsc}
-          />
+        {isLoading && <Loader />}
+        {images.length > 0 && totalPages !== currentPage && !isLoading && (
+          <Button onClick={this.loadMore} />
         )}
       </div>
     );
   }
 }
+
+export default App;

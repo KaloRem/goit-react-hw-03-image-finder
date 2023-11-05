@@ -1,32 +1,37 @@
-import React from 'react';
-
-class Searchbar extends React.Component {
+import { Component } from 'react';
+import { MdSearch } from 'react-icons/md';
+import PropTypes from 'prop-types';
+import styles from './Searchbar.module.css'
+class SearchBar extends Component {
   state = {
+    searchName: '',
     inputValue: '',
   };
 
-  handleChange = e => {
-    this.setState({
-      inputValue: e.target.value,
-    });
+  handleChange = event => {
+    this.setState({ inputValue: event.target.value });
   };
 
-  handleOnSubmit = e => {
-    e.preventDefault();
-    this.props.onSubmit(this.state.inputValue);
+  handleSubmit = event => {
+    event.preventDefault();
+    const searchQuery = event.target.elements.searchName.value.trim();
+    this.props.onSubmit(searchQuery);
+    event.target.reset();
   };
 
   render() {
     return (
       <header>
-        <form onSubmit={this.handleOnSubmit}>
-          <button type="submit">
-            <span>Search</span>
+        <form className={styles.form} onSubmit={this.handleSubmit}>
+          <button className={styles.button}>
+            <MdSearch style={{ width: 25, height: 25 }} />
           </button>
-
-          <input
-            onChange={this.handleChange}
+          <input className={styles.input}
+            name="searchName"
             type="text"
+            id="search"
+            value={this.state.inputValue}
+            onChange={this.handleChange}
             autoComplete="off"
             autoFocus
             placeholder="Search images and photos"
@@ -37,4 +42,8 @@ class Searchbar extends React.Component {
   }
 }
 
-export default Searchbar;
+SearchBar.propTypes = {
+  onSubmit: PropTypes.func.isRequired,
+};
+
+export default SearchBar;

@@ -1,26 +1,50 @@
-import React from 'react';
-import styles from './Modal.module.css';
+import { Component } from 'react';
+import { createPortal } from 'react-dom';
+import PropTypes from 'prop-types';
+import styles from './Modal.module.css'
 
-const Modal = ({ photo, toggleModal, toggleModalEsc }) => {
-  const handleOnClickOverlay = e => {
-    if (e.target.nodeName !== 'IMG') {
-      toggleModal();
+const modalRoot = document.querySelector('#modal-root'); // Added to index.html
+
+class Modal extends Component {
+  componentDidMount() {
+    window.addEventListener('keydown', this.handleKeyDown);
+    document.body.style.overflow = 'hidden';
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this.handleKeyDown);
+    document.body.style.overflow = 'visible';
+  }
+
+  handleKeyDown = event => {
+    if (event.code === 'Escape') {
+      this.props.onClose();
     }
   };
 
-  window.addEventListener('keydown', e => {
-    if (e.code === 'Escape') {
-      toggleModalEsc();
+  handleBackdropClick = event => {
+    if (event.target.nodeName !== 'IMG') {
+      this.props.onClose();
     }
-  });
+  };
 
-  return (
-    <div className={styles.Overlay} onClick={handleOnClickOverlay}>
-      <div className={styles.Modal}>
-        <img src={photo} alt="" />
-      </div>
-    </div>
-  );
+  render() {
+    const { largeImageURL, tags } = this.props;
+    return createPortal(
+      <div className={ styles.overlay } onClick={this.handleBackdropClick}>
+        <section className={ styles.overlay }>
+          <img src={largeImageURL} alt={tags} />
+        </section>
+      </div>,
+      modalRoot // portal on [6];
+    );
+  }
+}
+
+Modal.propTypes = {
+  largeImageURL: PropTypes.string.isRequired,
+  tags: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired,
 };
 
 export default Modal;
